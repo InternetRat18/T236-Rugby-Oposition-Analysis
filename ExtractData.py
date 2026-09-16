@@ -27,13 +27,3 @@ for fileNum, file in enumerate(os.listdir(folderPath)):
                         appendLinesToFile("./ExtractedData/"+dataName+".csv", linesToAppend)
                         linesToAppend = []
 print("Done") #Can tell if successful.
-"""
-Ideas to add:
-- Given each present and future csv files have unique names (or even if not; but with extra, manual, steps): Ensure Extraction is not re-run for already processed csv files
-- Hyper threading
-    - Add startup options for amount of cores this program should (try to) use
-    - This might require, or at least be more effiecent in a diff language i.e. java/c++
-- Analysing and creating graphs from extracted data
-    - Should be easy if you use MATLab
-    - Can build it to .exe so user doesnt also need matlab natively
-"""
