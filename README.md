@@ -8,13 +8,15 @@ Generating new data;
 - Open The RawData folder and clear/delete the CSV files present. 
 - Run the program 'GenData.py'
 - This will create new, uniform random data
-\n Extracting data;
+
+Extracting data;
 Note: Currently hard coded to extract tackle data (as thats the only data with meaning rn)
 - open the 'ExtractedData' folder and ensure there are no files present before starting extraction. 
 Note: If there is files present it will append the extra data (including the header) to the end and break the processing data step as the header is a string, not a number.
 - open 'ExtractData.py'
 - This will create a file in the folder 'ExtractedData' with the tackle data
-\n Processing Data;
+
+Processing Data;
 Note: The .m file requires MatLAB to run, I tried to build this into an exe to work independently from matlab, with little success (will keep working on that tho).
 - With MATLAB, Open 'ProcessData.m'
 - Run it.
