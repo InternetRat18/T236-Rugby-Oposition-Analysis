@@ -5,28 +5,22 @@ The purpose of this program (or chain of file executions) is to provide a proof 
 
 How to use:
 
-Generating new data;
-- Open The RawData folder and clear/delete the CSV files present. 
-- Run the program 'GenData.py'
-- This will create new, uniform random data
-
 Extracting data;
 
-- Note: Currently hard coded to extract tackle data (as that's the only data with meaning rn)
-- open the 'ExtractedData' folder and ensure there are no files present before starting extraction. 
-Note: If there is files present it will append the extra data (including the header) to the end and break the processing data step as the header is a string, not a number.
-- open 'ExtractData.py'
-- This will create a file in the folder 'ExtractedData' with the tackle data
+- Idealy place the raw, unfiltered data within the 'RawData' folder for ease of access.
+- open/run 'ExtractData.py'
+- It will prompt you immediately to open this raw csv file.
+- Follow the instrctions the program offers.
+ - Can save all data to unique csv files in bulk
+ - Can save only one type of actionID data to a single file
+ - WIP -> can show detailed select graphs from the data entered.
 
 Processing Data;
 
-- Note: The .m file requires MATLAB to run, I tried to build this into an exe to work independently from matlab, with little success (will keep working on that tho).
-- With MATLAB, Open 'ProcessData.m'
-- Run it.
-- Observe.
+- Currently can only save the filtered data
 
-Notes:
-The python files shouldn't use any libraries that you would need to install. The .m must run inside MATLAB at this point (I dont like that either). As a compramise, I will provide a .png example of what its output looks like.
-The data is uniformly generated from memory and as such is very predictable.
-The speed of the files are very fast due to small file sizes, however, they are far from optimised currently. I have many techniques in mind to improve the effiecieny of a more developed version of this program.
+Notes/Requirements (Listed version is what has been tested to work, other versions may work but have not been tested)
+- tkinter/csv/os are all preinstalled with python(3.14.7)
+- matplotlib will need to be installed using "pip install matplotlib==3.11.2" 
 
+- The data is processed very fast, so no optimisation is required at this point.
