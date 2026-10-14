@@ -1,120 +1,55 @@
-import csv
-import os
+import sqlite3
 import matplotlib.pyplot as plt
 
 
-EVENT_FILES = {
-    "Carry": "ExtractedData/1-Carry.csv",
-    "Tackle": "ExtractedData/2-Tackle.csv",
-    "Pass": "ExtractedData/3-Pass.csv",
-    "Kick": "ExtractedData/4-Kick.csv",
-    "Ruck": "ExtractedData/23-Ruck.csv"
+# SQLite database
+DATABASE = "MainDB.db"
+
+# Team to analyse
+TEAM_NAME = "NSW Waratahs"
+
+
+
+EVENT_ACTIONS = {
+    "Carry": 1,
+    "Tackle": 2,
+    "Pass": 3,
+    "Kick": 4,
+    "Ruck": 23
 }
 
 
-
-def get_all_event_counts(folder_path):
+def get_event_data(action_id):
     """
-    Count the number of records in every event CSV file
-    inside the ExtractedData folder.
+    Retrieve event data for NSW Waratahs
+    from the SQLite database.
     """
 
-    event_counts = {}
+    connection = sqlite3.connect(DATABASE)
 
-    for filename in os.listdir(folder_path):
+    table_name = f"ActionSubtable-{action_id}"
 
-        if not filename.lower().endswith(".csv"):
-            continue
+    query = f'''
+        SELECT *
+        FROM "{table_name}"
+        WHERE teamName = ?
+    '''
 
-        file_path = os.path.join(folder_path, filename)
+    cursor = connection.cursor()
 
-        count = 0
+    cursor.execute(query, (TEAM_NAME,))
 
-        with open(file_path, "r", encoding="utf-8") as file:
+    rows = cursor.fetchall()
 
-            reader = csv.reader(file)
+    connection.close()
 
-            for row in reader:
-
-                if row:
-                    count += 1
-
-       
-        event_name = filename[:-4]
-
-        event_counts[event_name] = count
-
-    return event_counts
+    return rows
 
 
-def create_event_distribution():
-
-    folder_path = "ExtractedData"
-
-    event_counts = get_all_event_counts(folder_path)
-
-    # Sort according to number of events
-    sorted_events = sorted(
-        event_counts.items(),
-        key=lambda item: item[1],
-        reverse=True
-    )
-
-    print("\nEvent Counts")
-    print("-------------------------")
-
-    for event, count in sorted_events:
-
-        print(f"{event}: {count}")
-
-    event_names = [
-        event for event, count in sorted_events
-    ]
-
-    event_values = [
-        count for event, count in sorted_events
-    ]
-
-    plt.figure(figsize=(12, 8))
-
-    bars = plt.barh(
-        event_names[::-1],
-        event_values[::-1]
-    )
-
-    plt.title("NSW Waratahs Event Distribution")
-
-    plt.xlabel("Number of Events")
-
-    plt.ylabel("Event Type")
-
-    for bar, value in zip(
-        bars,
-        event_values[::-1]
-    ):
-
-        plt.text(
-            value + 2,
-            bar.get_y() + bar.get_height() / 2,
-            str(value),
-            va="center"
-        )
-
-    plt.tight_layout()
-
-    plt.savefig(
-        "event_distribution.png",
-        dpi=300,
-        bbox_inches="tight"
-    )
-
-    plt.show()
-
-
-
-def get_event_timeline(file_path):
+def get_event_timeline(rows):
     """
     Count events in 10-minute intervals.
+
     MatchTime is stored in MMSS format.
     """
 
@@ -129,118 +64,114 @@ def get_event_timeline(file_path):
         "70–80 min": 0
     }
 
-    with open(file_path, "r", encoding="utf-8") as file:
+    for row in rows:
 
-        reader = csv.reader(file)
+        if not row:
+            continue
 
-        for row in reader:
+        
+        match_time = row[8]
 
-            if not row:
-                continue
+        try:
+            match_time = int(match_time)
+        except (ValueError, TypeError):
+            continue
 
-            match_time = row[8]
+        # MatchTime uses MMSS format
+        minutes = match_time // 100
+        seconds = match_time % 100
 
-            try:
-                match_time = int(match_time)
+        total_seconds = minutes * 60 + seconds
 
-            except ValueError:
-                continue
+        if total_seconds < 600:
+            time_bins["0–10 min"] += 1
 
-            minutes = match_time // 100
+        elif total_seconds < 1200:
+            time_bins["10–20 min"] += 1
 
-            seconds = match_time % 100
+        elif total_seconds < 1800:
+            time_bins["20–30 min"] += 1
 
-            total_seconds = minutes * 60 + seconds
+        elif total_seconds < 2400:
+            time_bins["30–40 min"] += 1
 
-            if total_seconds < 600:
+        elif total_seconds < 3000:
+            time_bins["40–50 min"] += 1
 
-                time_bins["0–10 min"] += 1
+        elif total_seconds < 3600:
+            time_bins["50–60 min"] += 1
 
-            elif total_seconds < 1200:
+        elif total_seconds < 4200:
+            time_bins["60–70 min"] += 1
 
-                time_bins["10–20 min"] += 1
-
-            elif total_seconds < 1800:
-
-                time_bins["20–30 min"] += 1
-
-            elif total_seconds < 2400:
-
-                time_bins["30–40 min"] += 1
-
-            elif total_seconds < 3000:
-
-                time_bins["40–50 min"] += 1
-
-            elif total_seconds < 3600:
-
-                time_bins["50–60 min"] += 1
-
-            elif total_seconds < 4200:
-
-                time_bins["60–70 min"] += 1
-
-            elif total_seconds <= 4800:
-
-                time_bins["70–80 min"] += 1
+        elif total_seconds <= 4800:
+            time_bins["70–80 min"] += 1
 
     return time_bins
 
 
-
-def get_tackle_outcomes(file_path):
+def get_tackle_outcomes(rows):
     """
-    Count different tackle outcomes using
-    ActionResultName.
+    Count different tackle outcomes.
+
+    ActionResultName is column 19.
     """
 
     outcomes = {}
 
-    with open(file_path, "r", encoding="utf-8") as file:
+    for row in rows:
 
-        reader = csv.reader(file)
+        if not row:
+            continue
 
-        for row in reader:
+        outcome = row[19].strip()
 
-            if not row:
-                continue
+        if outcome == "":
+            continue
 
-            outcome = row[19].strip()
-
-            if outcome == "":
-                continue
-
-            outcomes[outcome] = (
-                outcomes.get(outcome, 0) + 1
-            )
+        outcomes[outcome] = outcomes.get(outcome, 0) + 1
 
     return outcomes
 
 
-def create_tackle_outcomes():
+def get_player_event_counts(rows):
+    """
+    Count how many times each player
+    appears in an event dataset.
 
-    tackle_file = EVENT_FILES["Tackle"]
+    playerName is column 3.
+    """
 
-    tackle_outcomes = get_tackle_outcomes(
-        tackle_file
-    )
+    player_counts = {}
 
-    print("\nTackle Outcomes")
-    print("-------------------------")
+    for row in rows:
 
-    for outcome, count in tackle_outcomes.items():
+        if not row:
+            continue
 
-        print(f"{outcome}: {count}")
+        player_name = row[3].strip()
+
+        if player_name == "":
+            continue
+
+        player_counts[player_name] = (
+            player_counts.get(player_name, 0) + 1
+        )
+
+    return player_counts
+
+
+def create_tackle_outcomes_chart(outcomes):
 
     plt.figure(figsize=(10, 6))
 
     bars = plt.bar(
-        tackle_outcomes.keys(),
-        tackle_outcomes.values()
+        outcomes.keys(),
+        outcomes.values()
     )
 
     plt.title(
-        "NSW Waratahs Tackle Outcomes"
+        f"{TEAM_NAME} Tackle Outcomes"
     )
 
     plt.xlabel("Tackle Outcome")
@@ -251,7 +182,7 @@ def create_tackle_outcomes():
 
     for bar, value in zip(
         bars,
-        tackle_outcomes.values()
+        outcomes.values()
     ):
 
         plt.text(
@@ -273,46 +204,7 @@ def create_tackle_outcomes():
     plt.show()
 
 
-
-
-def get_player_event_counts(file_path):
-    """
-    Count how many times each player appears
-    in the event dataset.
-
-    playerName = column 4 (index 3)
-    """
-
-    player_counts = {}
-
-    with open(file_path, "r", encoding="utf-8") as file:
-
-        reader = csv.reader(file)
-
-        for row in reader:
-
-            if not row:
-                continue
-
-            player_name = row[3].strip()
-
-            if player_name == "":
-                continue
-
-            player_counts[player_name] = (
-                player_counts.get(player_name, 0) + 1
-            )
-
-    return player_counts
-
-
-def create_top_tackle_players():
-
-    tackle_file = EVENT_FILES["Tackle"]
-
-    player_counts = get_player_event_counts(
-        tackle_file
-    )
+def create_top_player_chart(player_counts):
 
     sorted_players = sorted(
         player_counts.items(),
@@ -326,7 +218,6 @@ def create_top_tackle_players():
     print("-------------------------")
 
     for player, count in top_players:
-
         print(f"{player}: {count}")
 
     player_names = [
@@ -345,7 +236,7 @@ def create_top_tackle_players():
     )
 
     plt.title(
-        "NSW Waratahs Top Tackle Players"
+        f"{TEAM_NAME} Top Tackle Players"
     )
 
     plt.xlabel("Player")
@@ -381,25 +272,7 @@ def create_top_tackle_players():
     plt.show()
 
 
-
-
-def create_event_timeline(event_name):
-
-    file_path = EVENT_FILES[event_name]
-
-    timeline = get_event_timeline(
-        file_path
-    )
-
-    print()
-    print(event_name + " Timeline")
-    print("-------------------------")
-
-    for period, count in timeline.items():
-
-        print(
-            f"{period}: {count}"
-        )
+def create_timeline_chart(event_name, timeline):
 
     plt.figure(figsize=(10, 6))
 
@@ -409,7 +282,7 @@ def create_event_timeline(event_name):
     )
 
     plt.title(
-        f"NSW Waratahs {event_name} Activity Over Match Time"
+        f"{TEAM_NAME} {event_name} Activity Over Match Time"
     )
 
     plt.xlabel("Match Time")
@@ -435,10 +308,7 @@ def create_event_timeline(event_name):
 
     plt.tight_layout()
 
-    filename = (
-        event_name.lower()
-        + "_timeline.png"
-    )
+    filename = event_name.lower() + "_timeline.png"
 
     plt.savefig(
         filename,
@@ -450,18 +320,46 @@ def create_event_timeline(event_name):
 
 
 
-print("\n===================================")
-print(" NSW WARATAHS RUGBY DATA ANALYSIS")
-print("===================================")
+
+print("\nLoading data from SQLite...")
+print("-------------------------")
+
+tackle_rows = get_event_data(
+    EVENT_ACTIONS["Tackle"]
+)
+
+print(
+    f"Tackle events for {TEAM_NAME}: "
+    f"{len(tackle_rows)}"
+)
 
 
-create_event_distribution()
 
 
-create_tackle_outcomes()
+tackle_outcomes = get_tackle_outcomes(
+    tackle_rows
+)
+
+print("\nTackle Outcomes")
+print("-------------------------")
+
+for outcome, count in tackle_outcomes.items():
+    print(f"{outcome}: {count}")
+
+create_tackle_outcomes_chart(
+    tackle_outcomes
+)
 
 
-create_top_tackle_players()
+
+
+player_counts = get_player_event_counts(
+    tackle_rows
+)
+
+create_top_player_chart(
+    player_counts
+)
 
 
 
@@ -495,6 +393,29 @@ else:
 
     event_name = event_choices[choice]
 
-    create_event_timeline(
+    action_id = EVENT_ACTIONS[
         event_name
+    ]
+
+    rows = get_event_data(
+        action_id
+    )
+
+    timeline = get_event_timeline(
+        rows
+    )
+
+    print()
+    print(event_name + " Timeline")
+    print("-------------------------")
+
+    for period, count in timeline.items():
+
+        print(
+            f"{period}: {count}"
+        )
+
+    create_timeline_chart(
+        event_name,
+        timeline
     )
