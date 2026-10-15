@@ -1,7 +1,7 @@
 import tkinter as tk #For file dialogue (opening/saving csvs)
 from tkinter import filedialog
 import csv #For effiency in andling csv files
-import matplotlib #For data visualisation (emulates MATLAB) NOTUSED YET
+#import matplotlib #For data visualisation (emulates MATLAB) NOTUSED YET
 import os #Save/create files
 import sqlite3 #For database
 
