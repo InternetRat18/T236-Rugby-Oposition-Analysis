@@ -1,4 +1,3 @@
-/* Dashboard filters and event table. */
 "use strict";
 
 const teamSelect = document.getElementById("team");
@@ -11,17 +10,6 @@ let selectedEvents = [];
 let currentPage = 0;
 let selectionId = 0;
 
-// Use the column names from the supplied workbook.
-const sample = window.REDS_SAMPLE_DATA;
-const sampleEvents = sample.rows.map(row => {
-  const event = {};
-  sample.columns.forEach((column, index) => {
-    event[column] = row[index];
-  });
-  return event;
-});
-
-// Player IDs are kept together with their team IDs.
 function playerKey(event) {
   if (!event.playerName) return "unnamed";
   const playerId = event.PLID ?? event.playerName;
@@ -38,6 +26,23 @@ function fillSelect(select, events, getValue, getLabel, allLabel) {
   select.replaceChildren(new Option(allLabel, ""));
   const sorted = [...options].sort((a, b) => a[1].localeCompare(b[1]));
   sorted.forEach(([value, text]) => select.add(new Option(text, value)));
+}
+
+function halfLabel(value) {
+  if (String(value) === "1") return "First half";
+  if (String(value) === "2") return "Second half";
+  return "Half " + String(value);
+}
+
+function updateHalfOptions(events) {
+  const previousValue = periodSelect.value;
+  const halves = [...new Set(events
+    .map(event => event.period)
+    .filter(value => value !== null && value !== undefined && String(value).trim() !== "")
+    .map(value => String(value)))].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
+  periodSelect.replaceChildren(new Option("All halves", ""));
+  halves.forEach(value => periodSelect.add(new Option(halfLabel(value), value)));
+  periodSelect.value = halves.includes(previousValue) ? previousValue : "";
 }
 
 function updatePlayerOptions() {
@@ -95,8 +100,6 @@ function updateDashboard() {
   document.getElementById("selectionInfo").textContent = recordCount + " matching records";
   currentPage = 0;
   showPage();
-
-  // A new selection clears old charts and requests fresh analysis.
   selectionId++;
   const selection = getSelection();
   window.RedsAnalysis.updateSelection(selection);
@@ -122,14 +125,14 @@ function showPage() {
   const pageEvents = selectedEvents.slice(start, start + pageSize);
   pageEvents.forEach(event => {
     const row = document.createElement("tr");
-    let half = "Not recorded";
-    if (String(event.period) === "1") half = "First";
-    else if (String(event.period) === "2") half = "Second";
+    const half = event.period === null || event.period === undefined || String(event.period).trim() === ""
+      ? "Not recorded"
+      : halfLabel(event.period);
     const cells = [
       formatClock(event.MatchTime),
       half,
       event.teamName,
-      event.playerName || "No named player",
+      event.playerName || "Not recorded",
       actionLabel(event),
       event.ActionResultName || "Not recorded"
     ];
@@ -161,9 +164,7 @@ function showPage() {
 }
 
 function resetFilters() {
-  // Start with the opponent in the supplied match.
-  const opponent = allEvents.find(event => event.teamName === "NSW Waratahs");
-  teamSelect.value = opponent ? String(opponent.team_id) : "";
+  teamSelect.value = "";
   updatePlayerOptions();
   actionSelect.value = "";
   periodSelect.value = "";
@@ -192,8 +193,9 @@ function loadData(events) {
     "All teams"
   );
   fillSelect(actionSelect, allEvents, event => String(event.action), actionLabel, "All actions");
+  updateHalfOptions(allEvents);
   const first = allEvents[0] || {};
-  let matchTitle = "Supplied event data";
+  let matchTitle = allEvents.length ? "Match events" : "No match events found";
   if (first.homeTeamName && first.awayTeamName) {
     matchTitle = first.homeTeamName + " vs " + first.awayTeamName;
   }
@@ -224,7 +226,6 @@ document.getElementById("next").addEventListener("click", () => {
   showPage();
 });
 
-// Entry points for JiaLin's analysis and Daniel's processed data.
 window.RedsDashboard = {
   getFilters,
   getSelection,
@@ -233,4 +234,35 @@ window.RedsDashboard = {
   setAnalysisLoader: window.RedsAnalysis.setLoader,
   setAnalysis: window.RedsAnalysis.showResult
 };
-loadData(sampleEvents);
+(async function initialiseDashboard() {
+  try {
+    const response = await fetch("/api/events");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "The database API returned HTTP " + response.status + ".");
+    }
+    if (!Array.isArray(payload.events)) {
+      throw new Error("The database API response does not contain an events array.");
+    }
+    loadData(payload.events);
+  } catch (error) {
+    console.error("Could not load SQLite event data:", error);
+    document.getElementById("matchTitle").textContent = "Database data unavailable";
+    document.getElementById("matchDetails").textContent = error.message;
+    document.getElementById("eventCount").textContent = "0";
+    document.getElementById("playerCount").textContent = "0";
+    document.getElementById("actionCount").textContent = "0";
+    document.getElementById("selectionInfo").textContent = "No database records loaded.";
+    document.getElementById("analysisStatus").textContent = "Analysis requires records from MainDB.db.";
+    const tableBody = document.getElementById("eventRows");
+    tableBody.replaceChildren();
+    const row = tableBody.insertRow();
+    const cell = row.insertCell();
+    cell.colSpan = 6;
+    cell.className = "empty";
+    cell.textContent = "Database records could not be loaded. Ensure database is in the project root and contains the AllData table.";
+    document.getElementById("pageInfo").textContent = "0 matching records";
+    document.getElementById("previous").disabled = true;
+    document.getElementById("next").disabled = true;
+  }
+})();
