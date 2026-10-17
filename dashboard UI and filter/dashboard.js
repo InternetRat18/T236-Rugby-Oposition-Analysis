@@ -100,6 +100,7 @@ function updateDashboard() {
   document.getElementById("selectionInfo").textContent = recordCount + " matching records";
   currentPage = 0;
   showPage();
+
   selectionId++;
   const selection = getSelection();
   window.RedsAnalysis.updateSelection(selection);
