@@ -9,10 +9,9 @@ Description: The purpose of this program (or chain of file executions) is to pro
 1. Put the match CSV files in **RawData** (or select them when prompted by **ExtractData.py**).
 
 2. Open/Run:
-
-   ```
-   py ExtractData.py
-   ```
+    ``` 
+    py ExtractData.py
+    ```
 
    * It will prompt you immediately to open this raw csv file.
    * Follow the instrctions the program offers.
@@ -25,14 +24,15 @@ Description: The purpose of this program (or chain of file executions) is to pro
 
 3. Python dependencies:
       * Installed:
-     ```
-   tkinter/csv/os
-    ```
+     
+    > tkinter/csv/os
+    
       * Require installation:
 
-   ```
-   Flask -> py -m pip install flask
-   ```
+    > Flask ->
+    ```
+    py -m pip install flask
+    ```
 
 
 4. Start the API and webpage:
