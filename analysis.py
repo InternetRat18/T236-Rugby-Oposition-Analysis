@@ -1,421 +1,79 @@
-import sqlite3
-import matplotlib.pyplot as plt
+from collections import Counter
 
+def _value(row, key, default=None):
+    value = row.get(key, default)
+    return value
 
-# SQLite database
-DATABASE = "MainDB.db"
+def _match_rows(rows, filters=None):
+    filters = filters or {}
+    result = []
+    for row in rows:
+        if filters.get("teamId") and str(row.get("team_id", "")) != str(filters["teamId"]):
+            continue
+        if filters.get("playerId"):
+            player_id = filters["playerId"]
+            key = "unnamed" if not row.get("playerName") else f'{row.get("team_id")}:{row.get("PLID") or row.get("playerName")}'
+            if key != player_id:
+                continue
+        if filters.get("actionId") and str(row.get("action", "")) != str(filters["actionId"]):
+            continue
+        if filters.get("period") and str(row.get("period", "")) != str(filters["period"]):
+            continue
+        result.append(row)
+    return result
 
-# Team to analyse
-TEAM_NAME = "NSW Waratahs"
+def _timeline(rows):
+    labels = ["0–10 min", "10–20 min", "20–30 min", "30–40 min",
+              "40–50 min", "50–60 min", "60–70 min", "70–80 min"]
+    counts = Counter({label: 0 for label in labels})
+    for row in rows:
+        try:
+            clock = int(row.get("MatchTime"))
+            if clock < 0 or clock % 100 >= 60:
+                continue
+            seconds = (clock // 100) * 60 + clock % 100
+            if 0 <= seconds <= 4800:
+                index = min(seconds // 600, 7)
+                counts[labels[index]] += 1
+        except (TypeError, ValueError):
+            continue
+    return [{"label": label, "value": counts[label]} for label in labels]
 
+def get_dashboard_analysis(rows, filters=None):
+    filtered = _match_rows(rows, filters)
+    filters = filters or {}
+    action_id = str(filters.get("actionId", "") or "")
+    action_names = [str(r.get("actionName", "")).strip() for r in filtered if r.get("actionName")]
+    action_name = action_names[0] if action_names else "Selected events"
 
-
-EVENT_ACTIONS = {
-    "Carry": 1,
-    "Tackle": 2,
-    "Pass": 3,
-    "Kick": 4,
-    "Ruck": 23
-}
-
-
-def get_event_data(action_id):
-    """
-    Retrieve event data for NSW Waratahs
-    from the SQLite database.
-    """
-
-    connection = sqlite3.connect(DATABASE)
-
-    table_name = f"ActionSubtable-{action_id}"
-
-    query = f'''
-        SELECT *
-        FROM "{table_name}"
-        WHERE teamName = ?
-    '''
-
-    cursor = connection.cursor()
-
-    cursor.execute(query, (TEAM_NAME,))
-
-    rows = cursor.fetchall()
-
-    connection.close()
-
-    return rows
-
-
-def get_event_timeline(rows):
-    """
-    Count events in 10-minute intervals.
-
-    MatchTime is stored in MMSS format.
-    """
-
-    time_bins = {
-        "0–10 min": 0,
-        "10–20 min": 0,
-        "20–30 min": 0,
-        "30–40 min": 0,
-        "40–50 min": 0,
-        "50–60 min": 0,
-        "60–70 min": 0,
-        "70–80 min": 0
+    outcomes = Counter(
+        str(r.get("ActionResultName")).strip()
+        for r in filtered
+        if r.get("ActionResultName") and str(r.get("ActionResultName")).strip()
+    )
+    result_chart = {
+        "title": f"{action_name} results" if action_name != "Selected events" else "Action results",
+        "unit": "",
+        "data": [{"label": label, "value": count} for label, count in outcomes.most_common(12)],
     }
 
-    for row in rows:
-
-        if not row:
-            continue
-
-        
-        match_time = row[8]
-
-        try:
-            match_time = int(match_time)
-        except (ValueError, TypeError):
-            continue
-
-        # MatchTime uses MMSS format
-        minutes = match_time // 100
-        seconds = match_time % 100
-
-        total_seconds = minutes * 60 + seconds
-
-        if total_seconds < 600:
-            time_bins["0–10 min"] += 1
-
-        elif total_seconds < 1200:
-            time_bins["10–20 min"] += 1
-
-        elif total_seconds < 1800:
-            time_bins["20–30 min"] += 1
-
-        elif total_seconds < 2400:
-            time_bins["30–40 min"] += 1
-
-        elif total_seconds < 3000:
-            time_bins["40–50 min"] += 1
-
-        elif total_seconds < 3600:
-            time_bins["50–60 min"] += 1
-
-        elif total_seconds < 4200:
-            time_bins["60–70 min"] += 1
-
-        elif total_seconds <= 4800:
-            time_bins["70–80 min"] += 1
-
-    return time_bins
-
-
-def get_tackle_outcomes(rows):
-    """
-    Count different tackle outcomes.
-
-    ActionResultName is column 19.
-    """
-
-    outcomes = {}
-
-    for row in rows:
-
-        if not row:
-            continue
-
-        outcome = row[19].strip()
-
-        if outcome == "":
-            continue
-
-        outcomes[outcome] = outcomes.get(outcome, 0) + 1
-
-    return outcomes
-
-
-def get_player_event_counts(rows):
-    """
-    Count how many times each player
-    appears in an event dataset.
-
-    playerName is column 3.
-    """
-
-    player_counts = {}
-
-    for row in rows:
-
-        if not row:
-            continue
-
-        player_name = row[3].strip()
-
-        if player_name == "":
-            continue
-
-        player_counts[player_name] = (
-            player_counts.get(player_name, 0) + 1
+    is_tackle = action_id == "2" or any(name.lower() == "tackle" for name in action_names)
+    if is_tackle:
+        players = Counter(
+            str(r.get("playerName")).strip()
+            for r in filtered
+            if r.get("playerName") and str(r.get("playerName")).strip()
         )
-
-    return player_counts
-
-
-def create_tackle_outcomes_chart(outcomes):
-
-    plt.figure(figsize=(10, 6))
-
-    bars = plt.bar(
-        outcomes.keys(),
-        outcomes.values()
-    )
-
-    plt.title(
-        f"{TEAM_NAME} Tackle Outcomes"
-    )
-
-    plt.xlabel("Tackle Outcome")
-
-    plt.ylabel("Number of Tackles")
-
-    plt.xticks(rotation=35)
-
-    for bar, value in zip(
-        bars,
-        outcomes.values()
-    ):
-
-        plt.text(
-            bar.get_x() + bar.get_width() / 2,
-            value + 1,
-            str(value),
-            ha="center",
-            va="bottom"
-        )
-
-    plt.tight_layout()
-
-    plt.savefig(
-        "tackle_outcomes.png",
-        dpi=300,
-        bbox_inches="tight"
-    )
-
-    plt.show()
-
-
-def create_top_player_chart(player_counts):
-
-    sorted_players = sorted(
-        player_counts.items(),
-        key=lambda item: item[1],
-        reverse=True
-    )
-
-    top_players = sorted_players[:10]
-
-    print("\nTop Tackle Players")
-    print("-------------------------")
-
-    for player, count in top_players:
-        print(f"{player}: {count}")
-
-    player_names = [
-        player for player, count in top_players
-    ]
-
-    player_values = [
-        count for player, count in top_players
-    ]
-
-    plt.figure(figsize=(10, 6))
-
-    bars = plt.bar(
-        player_names,
-        player_values
-    )
-
-    plt.title(
-        f"{TEAM_NAME} Top Tackle Players"
-    )
-
-    plt.xlabel("Player")
-
-    plt.ylabel("Number of Tackles")
-
-    plt.xticks(
-        rotation=35,
-        ha="right"
-    )
-
-    for bar, value in zip(
-        bars,
-        player_values
-    ):
-
-        plt.text(
-            bar.get_x() + bar.get_width() / 2,
-            value + 0.5,
-            str(value),
-            ha="center",
-            va="bottom"
-        )
-
-    plt.tight_layout()
-
-    plt.savefig(
-        "top_tackle_players.png",
-        dpi=300,
-        bbox_inches="tight"
-    )
-
-    plt.show()
-
-
-def create_timeline_chart(event_name, timeline):
-
-    plt.figure(figsize=(10, 6))
-
-    bars = plt.bar(
-        timeline.keys(),
-        timeline.values()
-    )
-
-    plt.title(
-        f"{TEAM_NAME} {event_name} Activity Over Match Time"
-    )
-
-    plt.xlabel("Match Time")
-
-    plt.ylabel(
-        f"Number of {event_name} Events"
-    )
-
-    plt.xticks(rotation=30)
-
-    for bar, value in zip(
-        bars,
-        timeline.values()
-    ):
-
-        plt.text(
-            bar.get_x() + bar.get_width() / 2,
-            value + 0.5,
-            str(value),
-            ha="center",
-            va="bottom"
-        )
-
-    plt.tight_layout()
-
-    filename = event_name.lower() + "_timeline.png"
-
-    plt.savefig(
-        filename,
-        dpi=300,
-        bbox_inches="tight"
-    )
-
-    plt.show()
-
-
-
-
-print("\nLoading data from SQLite...")
-print("-------------------------")
-
-tackle_rows = get_event_data(
-    EVENT_ACTIONS["Tackle"]
-)
-
-print(
-    f"Tackle events for {TEAM_NAME}: "
-    f"{len(tackle_rows)}"
-)
-
-
-
-
-tackle_outcomes = get_tackle_outcomes(
-    tackle_rows
-)
-
-print("\nTackle Outcomes")
-print("-------------------------")
-
-for outcome, count in tackle_outcomes.items():
-    print(f"{outcome}: {count}")
-
-create_tackle_outcomes_chart(
-    tackle_outcomes
-)
-
-
-
-
-player_counts = get_player_event_counts(
-    tackle_rows
-)
-
-create_top_player_chart(
-    player_counts
-)
-
-
-
-
-print("\nAvailable events:")
-print("1 - Carry")
-print("2 - Tackle")
-print("3 - Pass")
-print("4 - Kick")
-print("5 - Ruck")
-
-choice = input(
-    "Select an event (1-5): "
-)
-
-
-event_choices = {
-    "1": "Carry",
-    "2": "Tackle",
-    "3": "Pass",
-    "4": "Kick",
-    "5": "Ruck"
-}
-
-
-if choice not in event_choices:
-
-    print("Invalid choice.")
-
-else:
-
-    event_name = event_choices[choice]
-
-    action_id = EVENT_ACTIONS[
-        event_name
-    ]
-
-    rows = get_event_data(
-        action_id
-    )
-
-    timeline = get_event_timeline(
-        rows
-    )
-
-    print()
-    print(event_name + " Timeline")
-    print("-------------------------")
-
-    for period, count in timeline.items():
-
-        print(
-            f"{period}: {count}"
-        )
-
-    create_timeline_chart(
-        event_name,
-        timeline
-    )
+        secondary_chart = {
+            "title": "Top players by event count",
+            "unit": "",
+            "data": [{"label": label, "value": count} for label, count in players.most_common(10)],
+        }
+    else:
+        secondary_chart = {
+            "title": f"{action_name} activity over match time",
+            "unit": "",
+            "data": _timeline(filtered),
+        }
+
+    return {"charts": [result_chart, secondary_chart]}
