@@ -14,7 +14,7 @@ header {
   padding: 30px 0;
   color: white;
   background: #82192c;
-  border-bottom: 4px solid #a51c30;
+  border-bottom: 10px solid #000080;
 }
 
 .header-content {
@@ -81,7 +81,7 @@ header .eyebrow {
 }
 
 .match-info.panel {
-  border-left: 4px solid #a51c30;
+  border-left: 4px solid #82192c;
 }
 
 .panel, .summary article {
@@ -397,3 +397,20 @@ footer {
   }
 
 }
+
+
+/* Pie chart used by the left-hand analysis panel in the original dashboard. */
+.pie-chart-layout {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(150px, 1.1fr);
+  align-items: center;
+  gap: 1rem;
+  min-height: 250px;
+}
+.pie-chart { width: 100%; max-width: 250px; height: auto; margin: 0 auto; overflow: visible; }
+.pie-legend { display: grid; gap: 0.55rem; min-width: 0; }
+.pie-legend-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: start; gap: 0.5rem; font-size: 0.85rem; }
+.pie-swatch { width: 10px; height: 10px; margin-top: 0.3rem; border-radius: 2px; }
+.pie-legend-label { overflow-wrap: anywhere; color: var(--text, #334155); }
+.pie-legend-value { white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (max-width: 650px) { .pie-chart-layout { grid-template-columns: 1fr; } .pie-chart { max-width: 220px; } }
