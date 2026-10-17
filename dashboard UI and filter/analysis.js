@@ -79,6 +79,75 @@ function drawBarChart(container, chart) {
   });
 }
 
+function drawPieChart(container, chart) {
+  if (chart.data.length === 0) {
+    container.className = "placeholder";
+    container.textContent = "No results for this selection.";
+    return;
+  }
+  container.className = "pie-chart-layout";
+  container.removeAttribute("role");
+  container.replaceChildren();
+  const total = chart.data.reduce((sum, item) => sum + item.value, 0);
+  if (total <= 0) {
+    container.textContent = "No results for this selection.";
+    return;
+  }
+
+  const colors = ["#2563eb", "#0f766e", "#f59e0b", "#9333ea", "#dc2626",
+    "#0891b2", "#65a30d", "#db2777", "#64748b", "#ea580c", "#4f46e5", "#059669"];
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", "0 0 220 220");
+  svg.setAttribute("class", "pie-chart");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", chart.title + ": " + chart.data.map(item => item.label + " " + item.value).join(", "));
+  let angle = -Math.PI / 2;
+  chart.data.forEach((item, index) => {
+    if (item.value <= 0) return;
+    const slice = item.value / total * Math.PI * 2;
+    const end = angle + slice;
+    const x1 = 110 + 96 * Math.cos(angle);
+    const y1 = 110 + 96 * Math.sin(angle);
+    const x2 = 110 + 96 * Math.cos(end);
+    const y2 = 110 + 96 * Math.sin(end);
+    const path = document.createElementNS(svgNS, "path");
+    if (item.value === total) {
+      path.setAttribute("d", "M 110 14 A 96 96 0 1 1 109.99 14 Z");
+    } else {
+      path.setAttribute("d", `M 110 110 L ${x1} ${y1} A 96 96 0 ${slice > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z`);
+    }
+    path.setAttribute("fill", colors[index % colors.length]);
+    path.setAttribute("stroke", "#ffffff");
+    path.setAttribute("stroke-width", "2");
+    const title = document.createElementNS(svgNS, "title");
+    title.textContent = `${item.label}: ${item.value} (${(item.value / total * 100).toFixed(1)}%)`;
+    path.appendChild(title);
+    svg.appendChild(path);
+    angle = end;
+  });
+
+  const legend = document.createElement("div");
+  legend.className = "pie-legend";
+  chart.data.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "pie-legend-row";
+    const swatch = document.createElement("span");
+    swatch.className = "pie-swatch";
+    swatch.style.backgroundColor = colors[index % colors.length];
+    swatch.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.className = "pie-legend-label";
+    label.textContent = item.label;
+    const value = document.createElement("strong");
+    value.className = "pie-legend-value";
+    value.textContent = `${item.value} (${(item.value / total * 100).toFixed(1)}%)`;
+    row.append(swatch, label, value);
+    legend.appendChild(row);
+  });
+  container.append(svg, legend);
+}
+
 function showAnalysis(result, selectionId) {
   if (!analysisSelection || selectionId !== analysisSelection.selectionId
     || analysisSelection.filteredRows.length === 0) return false;
@@ -87,7 +156,8 @@ function showAnalysis(result, selectionId) {
   resetCharts("No chart supplied for this selection.");
   result.charts.forEach((chart, index) => {
     chartTitles[index].textContent = chart.title;
-    drawBarChart(chartContainers[index], chart);
+    if (index === 0) drawPieChart(chartContainers[index], chart);
+    else drawBarChart(chartContainers[index], chart);
   });
   analysisStatus.textContent = result.charts.length
     ? "Analysis updated for the current selection."
