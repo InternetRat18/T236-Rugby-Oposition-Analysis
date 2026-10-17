@@ -5,7 +5,7 @@ from analysis import get_dashboard_analysis
 
 ROOT = Path(__file__).resolve().parent
 DATABASE = ROOT / "MainDB.db"
-app = Flask(__name__, static_folder="dashboard", static_url_path="")
+app = Flask(__name__, static_folder="dashboard UI and filter", static_url_path="")
 
 def connect_db():
     if not DATABASE.exists():
