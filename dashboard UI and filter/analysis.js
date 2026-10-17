@@ -45,7 +45,6 @@ function validateCharts(result) {
   }
 }
 
-// Values are supplied by the analysis module. Only the bar width is calculated here.
 function drawBarChart(container, chart) {
   if (chart.data.length === 0) {
     container.textContent = "No results for this selection.";
