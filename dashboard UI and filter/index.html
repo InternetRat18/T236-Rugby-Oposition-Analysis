@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Queensland Reds | Opposition Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <p class="eyebrow">Queensland Reds · Match review</p>
+      <h1>Opposition Dashboard</h1>
+      <p>Explore match events and review opposition analysis.</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel match-info" aria-label="Match information">
+      <p class="eyebrow">Match overview</p>
+      <h2 id="matchTitle">Match overview</h2>
+      <p id="matchDetails"></p>
+      <p class="muted">Use the filters to explore the supplied match events.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="filterTitle">
+      <div class="section-heading">
+        <h2 id="filterTitle">Filters</h2>
+        <button id="reset" type="button">Reset filters</button>
+      </div>
+      <p class="filter-note muted">Choose a team, player, action or half to narrow the event list.</p>
+      <div class="filters">
+        <div><label for="team">Team</label><select id="team"></select></div>
+        <div><label for="player">Player</label><select id="player"></select></div>
+        <div><label for="action">Action</label><select id="action"></select></div>
+        <div>
+          <label for="period">Half</label>
+          <select id="period">
+            <option value="">Both halves</option>
+            <option value="1">First half</option>
+            <option value="2">Second half</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- These cards count source records, players and action IDs. -->
+    <section class="summary" aria-label="Filtered record summary">
+      <article><h2>Event records</h2><strong id="eventCount">0</strong><p>Rows matching the filters</p></article>
+      <article><h2>Named players</h2><strong id="playerCount">0</strong><p>Players in the selected rows</p></article>
+      <article><h2>Action categories</h2><strong id="actionCount">0</strong><p>Action IDs in the selected rows</p></article>
+    </section>
+
+    <div class="section-heading analysis-heading">
+      <div>
+        <h2>Analysis views</h2>
+        <p id="analysisStatus" class="muted" role="status">Analysis is not available yet.</p>
+      </div>
+      <button id="refreshAnalysis" type="button" disabled>Refresh analysis</button>
+    </div>
+    <section class="charts" aria-label="Analysis charts">
+      <article class="panel">
+        <h2 id="actionChartTitle">Action breakdown</h2>
+        <div id="actionChart" class="placeholder">No analysis results for this selection.</div>
+      </article>
+      <article class="panel">
+        <h2 id="fieldChartTitle">Additional analysis</h2>
+        <div id="fieldChart" class="placeholder">No analysis results for this selection.</div>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="recordsTitle">
+      <div class="section-heading">
+        <h2 id="recordsTitle">Event records</h2>
+        <p id="selectionInfo" class="muted" role="status"></p>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th scope="col">Clock</th><th scope="col">Half</th>
+            <th scope="col">Team</th><th scope="col">Player</th>
+            <th scope="col">Action</th><th scope="col">Recorded result</th>
+          </tr></thead>
+          <tbody id="eventRows"></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <p id="pageInfo"></p>
+        <div><button id="previous" type="button">Previous</button><button id="next" type="button">Next</button></div>
+      </div>
+    </section>
+    <footer>Queensland Reds · Opposition dashboard</footer>
+  </main>
+
+  <script src="sample-data.js"></script>
+  <script src="analysis.js"></script>
+  <script src="dashboard.js"></script>
+  <script src="integration.js"></script>
+</body>
+</html>
